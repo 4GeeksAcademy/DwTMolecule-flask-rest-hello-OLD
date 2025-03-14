@@ -36,24 +36,6 @@ def handle_invalid_usage(error):
 def sitemap():
     return generate_sitemap(app)
 
-@app.route('/user', methods=['GET'])
-def handle_hello():
-
-    response_body = {
-        "msg": "Hello, this is your GET /user response "
-    }
-
-    return jsonify(response_body), 200
-
-@app.route('/test', methods=['GET'])
-def test():
-
-    response_body = {
-        "msg": "Esto es una prueba "
-    }
-
-    return jsonify(response_body), 200
-
 
 @app.route('/planets', methods=['GET'])
 def get_planets():
@@ -86,6 +68,9 @@ def get_planet(planet_id):
 
 @app.route('/favorite/planet/<int:planet_id>/user/<int:user_id>', methods=['POST'])
 def add_favorite_planet(planet_id,user_id):
+    favorite_exist = FavoritePlanet.query.filter_by(id_user=user_id, id_planet=planet_id).first()
+    if favorite_exist: 
+        return jsonify({"msg": "el favorito ya existe"}), 403
     favorite_planet = FavoritePlanet(id_user=user_id, id_planet=planet_id)
     db.session.add(favorite_planet)
     db.session.commit()
@@ -127,6 +112,9 @@ def get_people(people_id):
 
 @app.route('/favorite/people/<int:people_id>/user/<int:user_id>', methods=['POST'])
 def add_favorite_people(people_id,user_id):
+    favorite_exist = FavoritePeople.query.filter_by(id_user=user_id, id_people=people_id).first()
+    if favorite_exist: 
+        return jsonify({"msg": "el favorito ya existe"}), 403
     favorite_people = FavoritePeople(id_user=user_id, id_people=people_id)
     db.session.add(favorite_people)
     db.session.commit()
@@ -158,38 +146,45 @@ def get_user_favorites(user_id):
     if not user:
         return jsonify(msg="user not found"), 404
 
-    favorite_people = FavoritePeople.query.filter_by(id_user=user_id).all()
-    serialized_favorite_people = [favorite.serialize() for favorite in favorite_people]
-   
+
+    serialized_favorite_people = [favorite.serialize() for favorite in user.favorite_people]
+
+    serialized_favorite_planet = [favorite.serialize() for favorite in user.favorite_planet]
 
     response_body = {
         "msg": "Estoy trayendo un usuario y sus favoritos",
-        "people": serialized_favorite_people
+        "user": user.serialize(),
+        "people": serialized_favorite_people,
+        "planet": serialized_favorite_planet
     }
+   
 
     return jsonify(response_body), 200
 
 
-@app.route('/favorite/people/<int:people_id>', methods= ["DELETE"])
-def delete_favorite_people(people_id):
+@app.route('/favorite/people/<int:people_id>/user/<int:user_id>', methods= ["DELETE"])
+def delete_favorite_people(people_id, user_id):
 
-    user_id= 1
-    exist = FavoritePeople.query.filter_by(id_user= user_id, id_people= people_id).first()
-    if exist :
-        db.session.delete(exist)
-        db.session.commit()
+    favorite_exist = FavoritePeople.query.filter_by(id_user=user_id, id_people=people_id).first()
+    if not favorite_exist: 
+        return jsonify({"msg": "el favorito no existe"}), 404
+   
+    db.session.delete(favorite_exist)
+    db.session.commit()
     return jsonify({"msg": "Personaje eliminado de los favoritos"})
 
 
-@app.route('/favorite/planet/<int:planet_id>', methods= ["DELETE"])
-def delete_favorite_planet(planet_id):
+@app.route('/favorite/planet/<int:planet_id>/user/<int:user_id>', methods= ["DELETE"])
+def delete_favorite_planet(planet_id, user_id):
 
-    user_id= 1
-    exist = FavoritePlanet.query.filter_by(id_user= user_id, id_planet= planet_id).first()
-    if exist :
-        db.session.delete(exist)
-        db.session.commit()
+    favorite_exist = FavoritePlanet.query.filter_by(id_user=user_id, id_planet=planet_id).first()
+    if not favorite_exist: 
+        return jsonify({"msg": "el favorito no existe"}), 404
+   
+    db.session.delete(favorite_exist)
+    db.session.commit()
     return jsonify({"msg": "Planeta eliminado de los favoritos"})
+
 
 
 # this only runs if `$ python src/app.py` is executed
